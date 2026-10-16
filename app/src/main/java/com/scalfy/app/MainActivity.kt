@@ -3,6 +3,7 @@ package com.scalfy.app
 import android.Manifest
 import android.app.StatusBarManager
 import android.content.ComponentName
+import android.nfc.cardemulation.CardEmulation
 import android.graphics.drawable.Icon
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -51,6 +52,7 @@ class MainActivity : ComponentActivity() {
         ScalfyState.appVisible = true
         nfcOk = NfcAdapter.getDefaultAdapter(this)?.isEnabled == true
         nfc.start()
+        try { CardEmulation.getInstance(NfcAdapter.getDefaultAdapter(this)).setPreferredService(this, ComponentName(this, ScalfyHceService::class.java)) } catch (_: Exception) {}
         val missing = Setup.missing(this, Setup.btPerms())
         if (missing.isNotEmpty()) permLauncher.launch(missing.toTypedArray())
         else if (ScalfyState.phase.value == Phase.IDLE) transfer.reset()
@@ -62,6 +64,7 @@ class MainActivity : ComponentActivity() {
         super.onPause()
         ScalfyState.appVisible = false
         nfc.stop()
+        try { CardEmulation.getInstance(NfcAdapter.getDefaultAdapter(this)).unsetPreferredService(this) } catch (_: Exception) {}
         if (!ScalfyState.serviceOn.value) transfer.stop()
     }
 

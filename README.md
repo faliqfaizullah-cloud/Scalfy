@@ -19,3 +19,7 @@ Requirements: Android 10+, NFC, Google Play services, app open on both phones.
 - Grants needed once: Bluetooth/Nearby, notifications, and "Display over other apps" (for the glow + pill over any screen).
 - While on, a small "Scalfy is ready" notification keeps the app alive. Tap the tile (or "Turn off") to stop.
 - Phone screen must be on and unlocked.
+
+## Standalone tap + auto-show
+- A tap uses a private NFC tag type (MIME `application/vnd.scalfy.tap`) that only Scalfy handles, so Android opens Scalfy directly with no "Choose app" list and no other app involved.
+- When a transfer completes, received photos, contacts, files and text pop up automatically in a bottom sheet (like AirDrop).

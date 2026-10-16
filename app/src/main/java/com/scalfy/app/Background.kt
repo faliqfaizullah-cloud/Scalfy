@@ -8,6 +8,7 @@ import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.hardware.input.InputManager
 import android.graphics.drawable.Icon
+import android.nfc.NdefMessage
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.os.Build
@@ -108,16 +109,17 @@ class ScalfyTileService : TileService() {
     }
 }
 
-/** Invisible activity the system launches when another Scalfy phone is tapped and Scalfy isn't open. */
+/** Invisible activity Android opens (directly, no chooser) when another Scalfy phone is tapped. */
 class TapReceiverActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        @Suppress("DEPRECATION") val tag = intent?.getParcelableExtra<Tag>(NfcAdapter.EXTRA_TAG)
-        if (tag == null || !ScalfyState.serviceOn.value) { finish(); return }
-        Thread {
-            NfcReader.read(tag)?.let { TapActions.peerRead(it) }
-            runOnUiThread { finish() }
-        }.start()
+        try {
+            @Suppress("DEPRECATION") val raw = intent?.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES)
+            val rec = (raw?.firstOrNull() as? NdefMessage)?.records?.firstOrNull { it.toMimeType() == SCALFY_MIME }
+            val p = rec?.payload?.let { String(it) }?.split("|", limit = 3)
+            if (p != null && p.size == 3 && p[0] == "SCALFY" && ScalfyState.serviceOn.value) TapActions.peerRead(Peer(p[1], p[2]))
+        } catch (_: Exception) {}
+        finish()
     }
 }
 

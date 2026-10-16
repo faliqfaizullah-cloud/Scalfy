@@ -55,7 +55,7 @@ class TransferManager(private val ctx: Context) {
     fun reset() {
         handler.removeCallbacksAndMessages(null)
         try { client.stopAllEndpoints(); client.stopAdvertising(); client.stopDiscovery() } catch (_: Exception) {}
-        metas.clear(); incoming.clear(); outgoing.clear()
+        metas.clear(); incoming.clear(); outgoing.clear(); ScalfyState.sessionReceived.clear()
         sentAll = false; peerDone = false; finished = false; expectedIn = 0; doneIn = 0
         connecting = false; connected = false
         ScalfyState.token = ScalfyState.newToken()
@@ -147,7 +147,10 @@ class TransferManager(private val ctx: Context) {
         }
     }
 
-    private fun addReceived(i: ShareItem) { ScalfyState.received.value = listOf(i) + ScalfyState.received.value }
+    private fun addReceived(i: ShareItem) {
+        ScalfyState.received.value = listOf(i) + ScalfyState.received.value
+        ScalfyState.sessionReceived.add(i)
+    }
 
     private fun maybeFinish() {
         if (finished) return

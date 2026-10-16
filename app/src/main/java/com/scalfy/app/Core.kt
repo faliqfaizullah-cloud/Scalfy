@@ -1,6 +1,11 @@
 package com.scalfy.app
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
@@ -33,6 +38,9 @@ object ScalfyState {
     val status = MutableStateFlow("Connected")
     val myName = MutableStateFlow(Build.MODEL ?: "My phone")
     val serviceOn = MutableStateFlow(false)
+    val sessionReceived = ArrayList<ShareItem>()
+    val lastReceived = MutableStateFlow<List<ShareItem>>(emptyList())
+    val lastFrom = MutableStateFlow("Nearby phone")
     @Volatile var appVisible = false
 
     @Volatile var token: String = newToken()
@@ -88,7 +96,31 @@ object TapController {
     fun setName(name: String) = main.post { ScalfyState.peer.value = Peer("", name) }
     fun finish(label: String) = main.post {
         ScalfyState.status.value = label; busy = false
-        if (label == "Done") Haptics.success() else Haptics.error()
+        if (label == "Done") {
+            Haptics.success()
+            val got = ScalfyState.sessionReceived.toList()
+            if (got.isNotEmpty()) {
+                ScalfyState.lastReceived.value = got
+                ScalfyState.lastFrom.value = ScalfyState.peer.value?.name ?: "Nearby phone"
+                showReceived(got.size)
+            }
+        } else Haptics.error()
+    }
+
+    /** AirDrop-style: pop the received content onto the screen as soon as the transfer completes. */
+    private fun showReceived(count: Int) {
+        val i = Intent(app, ReceivedActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        try { app.startActivity(i) } catch (_: Exception) {}
+        if (!ScalfyState.appVisible) {
+            // Backup in case the system refuses a background activity start.
+            val nm = app.getSystemService(NotificationManager::class.java)
+            nm.createNotificationChannel(NotificationChannel("scalfy_recv", "Received", NotificationManager.IMPORTANCE_HIGH))
+            val pi = PendingIntent.getActivity(app, 3, i, PendingIntent.FLAG_IMMUTABLE)
+            nm.notify(8, Notification.Builder(app, "scalfy_recv").setSmallIcon(R.drawable.ic_tile)
+                .setContentTitle("Received from ${ScalfyState.lastFrom.value}")
+                .setContentText("$count item${if (count > 1) "s" else ""}. Tap to view")
+                .setContentIntent(pi).setAutoCancel(true).build())
+        }
     }
 }
 
