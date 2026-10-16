@@ -50,7 +50,12 @@ private fun DrawScope.edgeGlow(color: Color, strength: Float, corner: Float) {
  *  3. DISMISS   – pill retracts into the cutout, rim fades
  */
 @Composable
-fun TapExperience(content: @Composable () -> Unit) {
+fun TapExperience(
+    blurContent: Boolean = true,
+    topInset: Dp? = null,
+    onBloom: ((Float) -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
     val phase by ScalfyState.phase.collectAsState()
     val peer by ScalfyState.peer.collectAsState()
     val status by ScalfyState.status.collectAsState()
@@ -79,8 +84,10 @@ fun TapExperience(content: @Composable () -> Unit) {
         0.7f, 1f, infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Reverse), label = "p"
     )
 
+    SideEffect { onBloom?.invoke(bloom.value) }
+
     Box(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().blur((bloom.value * 24f).dp)) { content() }
+        Box(Modifier.fillMaxSize().blur(if (blurContent) (bloom.value * 24f).dp else 0.dp)) { content() }
 
         Canvas(Modifier.fillMaxSize()) {
             val corner = 48.dp.toPx()
@@ -107,7 +114,7 @@ fun TapExperience(content: @Composable () -> Unit) {
 
         val p = pill.value
         if (p > 0.001f) {
-            val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+            val statusTop = topInset ?: WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             val collapsedTop = ((statusTop - 34.dp) / 2).coerceAtLeast(6.dp)
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val w = lerp(118.dp, maxWidth - 24.dp, p).coerceAtLeast(60.dp)

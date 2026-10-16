@@ -32,6 +32,8 @@ object ScalfyState {
     val peer = MutableStateFlow<Peer?>(null)
     val status = MutableStateFlow("Connected")
     val myName = MutableStateFlow(Build.MODEL ?: "My phone")
+    val serviceOn = MutableStateFlow(false)
+    @Volatile var appVisible = false
 
     @Volatile var token: String = newToken()
     @Volatile private var tappedAt = 0L
@@ -103,4 +105,20 @@ object Haptics {
     fun success() = wave(longArrayOf(0, 25, 70, 45), intArrayOf(0, 120, 0, 255))
     /** Failed / no connection: long low buzz. */
     fun error() = wave(longArrayOf(0, 60, 50, 60, 50, 120), intArrayOf(0, 200, 0, 200, 0, 255))
+}
+
+/** Permission helpers for background mode. */
+object Setup {
+    fun btPerms(): List<String> = when {
+        Build.VERSION.SDK_INT >= 33 -> listOf(android.Manifest.permission.BLUETOOTH_SCAN, android.Manifest.permission.BLUETOOTH_ADVERTISE,
+            android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.NEARBY_WIFI_DEVICES)
+        Build.VERSION.SDK_INT >= 31 -> listOf(android.Manifest.permission.BLUETOOTH_SCAN, android.Manifest.permission.BLUETOOTH_ADVERTISE,
+            android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.ACCESS_FINE_LOCATION)
+        else -> listOf(android.Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+    fun runtimePerms(): List<String> =
+        btPerms() + if (Build.VERSION.SDK_INT >= 33) listOf(android.Manifest.permission.POST_NOTIFICATIONS) else emptyList()
+    fun missing(ctx: Context, list: List<String> = runtimePerms()) =
+        list.filter { ctx.checkSelfPermission(it) != android.content.pm.PackageManager.PERMISSION_GRANTED }
+    fun ready(ctx: Context) = missing(ctx).isEmpty() && android.provider.Settings.canDrawOverlays(ctx)
 }

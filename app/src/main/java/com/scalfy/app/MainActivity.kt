@@ -1,6 +1,9 @@
 package com.scalfy.app
 
 import android.Manifest
+import android.app.StatusBarManager
+import android.content.ComponentName
+import android.graphics.drawable.Icon
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -26,7 +29,10 @@ import android.os.Bundle
 
 class MainActivity : ComponentActivity() {
     private lateinit var nfc: NfcTapManager
-    private lateinit var transfer: TransferManager
+    private val transfer get() = TapController.transfer
+    private var askedPerms = false
+    private var askedOverlay = false
+    private var awaitingOverlay = false
     private var nfcOk by mutableStateOf(true)
 
     private val permLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { transfer.reset() }
@@ -34,15 +40,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        ScalfyState.load(this)
-        transfer = TransferManager(applicationContext)
-        TapController.app = applicationContext
-        TapController.transfer = transfer
-        nfc = NfcTapManager(this) { peer ->
-            val first = ScalfyState.phase.value == Phase.IDLE
-            TapController.onTap(peer)
-            if (first || ScalfyState.token < peer.token) transfer.connectTo(peer.token)
-        }
+        nfc = NfcTapManager(this)
         setContent {
             ScalfyTheme { TapExperience { Screen() } }
         }
@@ -50,21 +48,58 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        ScalfyState.appVisible = true
         nfcOk = NfcAdapter.getDefaultAdapter(this)?.isEnabled == true
         nfc.start()
-        val missing = neededPermissions().filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
+        val missing = Setup.missing(this, Setup.btPerms())
         if (missing.isNotEmpty()) permLauncher.launch(missing.toTypedArray())
         else if (ScalfyState.phase.value == Phase.IDLE) transfer.reset()
+        if (awaitingOverlay) { awaitingOverlay = false; enableBackground() }
+        else if (intent.getBooleanExtra("setup", false)) { intent.removeExtra("setup"); enableBackground() }
     }
 
-    override fun onPause() { super.onPause(); nfc.stop(); transfer.stop() }
+    override fun onPause() {
+        super.onPause()
+        ScalfyState.appVisible = false
+        nfc.stop()
+        if (!ScalfyState.serviceOn.value) transfer.stop()
+    }
 
-    private fun neededPermissions(): List<String> = when {
-        Build.VERSION.SDK_INT >= 33 -> listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_ADVERTISE,
-            Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.NEARBY_WIFI_DEVICES)
-        Build.VERSION.SDK_INT >= 31 -> listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_ADVERTISE,
-            Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.ACCESS_FINE_LOCATION)
-        else -> listOf(Manifest.permission.ACCESS_FINE_LOCATION)
+    override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent) }
+
+    private val bgPerms = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { enableBackground() }
+
+    /** Permissions -> overlay permission -> start the background service. */
+    private fun enableBackground() {
+        val ask = Setup.missing(this)
+        if (ask.isNotEmpty() && !askedPerms) { askedPerms = true; bgPerms.launch(ask.toTypedArray()); return }
+        askedPerms = false
+        if (Setup.missing(this, Setup.btPerms()).isNotEmpty()) {
+            Toast.makeText(this, "Bluetooth / Nearby permission is needed", Toast.LENGTH_LONG).show(); return
+        }
+        if (!Settings.canDrawOverlays(this) && !askedOverlay) {
+            askedOverlay = true; awaitingOverlay = true
+            Toast.makeText(this, "Allow \"Display over other apps\" for Scalfy", Toast.LENGTH_LONG).show()
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+            return
+        }
+        askedOverlay = false
+        if (!Settings.canDrawOverlays(this))
+            Toast.makeText(this, "Glow overlay is off. Taps still work.", Toast.LENGTH_LONG).show()
+        try { startForegroundService(Intent(this, ShareService::class.java)) }
+        catch (_: Exception) { Toast.makeText(this, "Couldn't start background mode", Toast.LENGTH_SHORT).show() }
+    }
+
+    private fun disableBackground() {
+        startService(Intent(this, ShareService::class.java).setAction(ShareService.ACTION_STOP))
+    }
+
+    private fun addTile() {
+        if (Build.VERSION.SDK_INT >= 33) {
+            getSystemService(StatusBarManager::class.java).requestAddTileService(
+                ComponentName(this, ScalfyTileService::class.java), "Scalfy",
+                Icon.createWithResource(this, R.drawable.ic_tile), mainExecutor) { }
+        } else Toast.makeText(this, "Swipe down twice, tap the pencil, drag Scalfy into your tiles", Toast.LENGTH_LONG).show()
     }
 
     @Composable
@@ -90,7 +125,9 @@ class MainActivity : ComponentActivity() {
             },
             onText = { dialog = "text" },
             onEditName = { dialog = "name" },
-            onOpen = { openItem(it) }
+            onOpen = { openItem(it) },
+            onToggleBg = { on -> if (on) enableBackground() else disableBackground() },
+            onAddTile = { addTile() }
         )
 
         dialog?.let { kind ->

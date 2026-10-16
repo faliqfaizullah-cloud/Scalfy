@@ -13,3 +13,9 @@ Tap two phones together → glow bloom → "Connected" pill → photos / contact
 3. Received photos → Pictures/Scalfy, files → Download/Scalfy.
 
 Requirements: Android 10+, NFC, Google Play services, app open on both phones.
+
+## Background mode (no need to open the app)
+- Turn on **Tap to share anywhere** in the app, or add the **Scalfy Quick Settings tile** and tap it.
+- Grants needed once: Bluetooth/Nearby, notifications, and "Display over other apps" (for the glow + pill over any screen).
+- While on, a small "Scalfy is ready" notification keeps the app alive. Tap the tile (or "Turn off") to stop.
+- Phone screen must be on and unlocked.

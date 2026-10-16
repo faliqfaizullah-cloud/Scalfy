@@ -40,12 +40,14 @@ fun ScalfyTheme(content: @Composable () -> Unit) = MaterialTheme(
 fun Home(
     nfcOk: Boolean, onNfcSettings: () -> Unit,
     onPhotos: () -> Unit, onFiles: () -> Unit, onContact: () -> Unit, onText: () -> Unit,
-    onEditName: () -> Unit, onOpen: (ShareItem) -> Unit
+    onEditName: () -> Unit, onOpen: (ShareItem) -> Unit,
+    onToggleBg: (Boolean) -> Unit, onAddTile: () -> Unit
 ) {
     val out by ScalfyState.outbox.collectAsState()
     val inbox by ScalfyState.received.collectAsState()
     val name by ScalfyState.myName.collectAsState()
     val view = LocalView.current
+    val bgOn by ScalfyState.serviceOn.collectAsState()
     fun tick(f: () -> Unit): () -> Unit = { view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); f() }
 
     LazyColumn(
@@ -61,6 +63,18 @@ fun Home(
         item {
             Text(if (nfcOk) "Hold phones back to back to share" else "NFC is off", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium)
             if (!nfcOk) Button(onClick = onNfcSettings, modifier = Modifier.padding(top = 8.dp)) { Text("Turn on NFC") }
+        }
+        item {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Card).padding(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Tap to share anywhere", color = Color.White, fontWeight = FontWeight.Medium)
+                        Text("Runs in the background, no need to open the app", color = Color(0xFF8A8A8A), fontSize = 12.sp)
+                    }
+                    Switch(bgOn, { onToggleBg(it) })
+                }
+                TextButton(onAddTile) { Text("Add Quick Settings tile", color = Accent) }
+            }
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

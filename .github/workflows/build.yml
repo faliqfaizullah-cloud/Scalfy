@@ -1,11 +1,5 @@
 name: Build Scalfy APK
-on:
-  push:
-    branches: [main]
-    tags: ['v*']
-  workflow_dispatch:
-permissions:
-  contents: write
+on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -13,18 +7,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 17 }
-      - name: Accept Android licenses
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+      - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: 8.7 }
       - run: gradle assembleDebug
-      - run: cp app/build/outputs/apk/debug/app-debug.apk Scalfy.apk
       - uses: actions/upload-artifact@v4
         with:
           name: Scalfy-debug-apk
-          path: Scalfy.apk
-      - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: Scalfy.apk
+          path: app/build/outputs/apk/debug/*.apk
