@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
+import android.hardware.input.InputManager
 import android.graphics.drawable.Icon
 import android.nfc.NfcAdapter
 import android.nfc.Tag
@@ -160,7 +161,12 @@ class OverlayHost(private val ctx: Context) {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
-        ).apply { layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS }
+        ).apply {
+            layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            // Android 12+ blocks touches through overlays more opaque than this, even with FLAG_NOT_TOUCHABLE.
+            alpha = if (Build.VERSION.SDK_INT >= 31)
+                ctx.getSystemService(InputManager::class.java).maximumObscuringOpacityForTouch else 0.8f
+        }
         lp = params
         val v = ComposeView(ctx).apply {
             setViewTreeLifecycleOwner(o)
