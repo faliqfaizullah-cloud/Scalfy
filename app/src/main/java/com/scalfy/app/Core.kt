@@ -38,6 +38,7 @@ object ScalfyState {
     val status = MutableStateFlow("Connected")
     val myName = MutableStateFlow(Build.MODEL ?: "My phone")
     val serviceOn = MutableStateFlow(false)
+    val iphoneUrl = MutableStateFlow<String?>(null)
     val sessionReceived = ArrayList<ShareItem>()
     val lastReceived = MutableStateFlow<List<ShareItem>>(emptyList())
     val lastFrom = MutableStateFlow("Nearby phone")
@@ -72,7 +73,8 @@ object TapController {
     fun onTap(peer: Peer?) = main.post {
         val s = ScalfyState
         s.markTapped()
-        if (peer != null) s.peer.value = peer
+        val who = peer ?: if (s.iphoneUrl.value != null) Peer("", "iPhone") else null
+        if (who != null) s.peer.value = who
         if (s.phase.value != Phase.IDLE) return@post
         busy = true
         s.status.value = "Connected"
@@ -96,7 +98,7 @@ object TapController {
     fun setName(name: String) = main.post { ScalfyState.peer.value = Peer("", name) }
     fun finish(label: String) = main.post {
         ScalfyState.status.value = label; busy = false
-        if (label == "Done") {
+        if (label == "Done" || label == "Sent") {
             Haptics.success()
             val got = ScalfyState.sessionReceived.toList()
             if (got.isNotEmpty()) {

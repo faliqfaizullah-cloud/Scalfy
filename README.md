@@ -23,3 +23,7 @@ Requirements: Android 10+, NFC, Google Play services, app open on both phones.
 ## Standalone tap + auto-show
 - A tap uses a private NFC tag type (MIME `application/vnd.scalfy.tap`) that only Scalfy handles, so Android opens Scalfy directly with no "Choose app" list and no other app involved.
 - When a transfer completes, received photos, contacts, files and text pop up automatically in a bottom sheet (like AirDrop).
+
+## Send to iPhone (iPhone needs nothing installed)
+Add items, tap **Start** under "Send to iPhone", hold an iPhone (XS/XR or newer, iOS 14+) to the back of the phone and tap the banner.
+The NFC tap carries a web link; the page it opens (served by this phone over Wi-Fi/hotspot) shows the photos, files, contacts and text.

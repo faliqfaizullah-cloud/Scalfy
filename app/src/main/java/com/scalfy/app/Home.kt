@@ -41,13 +41,14 @@ fun Home(
     nfcOk: Boolean, onNfcSettings: () -> Unit,
     onPhotos: () -> Unit, onFiles: () -> Unit, onContact: () -> Unit, onText: () -> Unit,
     onEditName: () -> Unit, onOpen: (ShareItem) -> Unit,
-    onToggleBg: (Boolean) -> Unit, onAddTile: () -> Unit
+    onToggleBg: (Boolean) -> Unit, onAddTile: () -> Unit, onIphone: (Boolean) -> Unit
 ) {
     val out by ScalfyState.outbox.collectAsState()
     val inbox by ScalfyState.received.collectAsState()
     val name by ScalfyState.myName.collectAsState()
     val view = LocalView.current
     val bgOn by ScalfyState.serviceOn.collectAsState()
+    val iurl by ScalfyState.iphoneUrl.collectAsState()
     fun tick(f: () -> Unit): () -> Unit = { view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); f() }
 
     LazyColumn(
@@ -74,6 +75,17 @@ fun Home(
                     Switch(bgOn, { onToggleBg(it) })
                 }
                 TextButton(onAddTile) { Text("Add Quick Settings tile", color = Accent) }
+            }
+        }
+        item {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Card).padding(14.dp)) {
+                Text("Send to iPhone (no app needed)", color = Color.White, fontWeight = FontWeight.Medium)
+                Text(
+                    if (iurl == null) "Pick items above, tap Start, then hold the iPhone to the back of this phone and tap the banner on the iPhone. Both phones must share Wi-Fi, or the iPhone joins this phone's hotspot."
+                    else "Ready. Hold the iPhone to the back of this phone, then tap the banner on the iPhone.\n$iurl",
+                    color = Color(0xFF8A8A8A), fontSize = 12.sp
+                )
+                Button({ onIphone(iurl == null) }, Modifier.padding(top = 8.dp)) { Text(if (iurl == null) "Start" else "Stop") }
             }
         }
         item {

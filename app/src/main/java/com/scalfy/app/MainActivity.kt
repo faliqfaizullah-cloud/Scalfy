@@ -3,6 +3,9 @@ package com.scalfy.app
 import android.Manifest
 import android.app.StatusBarManager
 import android.content.ComponentName
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import android.nfc.cardemulation.CardEmulation
 import android.graphics.drawable.Icon
 import android.content.ClipData
@@ -42,6 +45,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         nfc = NfcTapManager(this)
+        lifecycleScope.launch {
+            ScalfyState.iphoneUrl.collect { u ->
+                if (u != null) nfc.stop() else if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) nfc.start()
+            }
+        }
         setContent {
             ScalfyTheme { TapExperience { Screen() } }
         }
@@ -51,7 +59,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         ScalfyState.appVisible = true
         nfcOk = NfcAdapter.getDefaultAdapter(this)?.isEnabled == true
-        nfc.start()
+        if (ScalfyState.iphoneUrl.value == null) nfc.start()
         try { CardEmulation.getInstance(NfcAdapter.getDefaultAdapter(this)).setPreferredService(this, ComponentName(this, ScalfyHceService::class.java)) } catch (_: Exception) {}
         val missing = Setup.missing(this, Setup.btPerms())
         if (missing.isNotEmpty()) permLauncher.launch(missing.toTypedArray())
@@ -130,7 +138,11 @@ class MainActivity : ComponentActivity() {
             onEditName = { dialog = "name" },
             onOpen = { openItem(it) },
             onToggleBg = { on -> if (on) enableBackground() else disableBackground() },
-            onAddTile = { addTile() }
+            onAddTile = { addTile() },
+            onIphone = { start ->
+                if (start) IphoneShare.start(applicationContext)?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show() }
+                else IphoneShare.stop()
+            }
         )
 
         dialog?.let { kind ->

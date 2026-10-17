@@ -30,6 +30,13 @@ class ScalfyHceService : HostApduService() {
     private fun session() = "SCALFY|${ScalfyState.token}|${ScalfyState.myName.value}".toByteArray().take(190).toByteArray()
 
     private fun ndefFile(): ByteArray {
+        ScalfyState.iphoneUrl.value?.let { url ->
+            // iPhone mode: a plain web-link record that iOS reads natively (prefix code 0x03 = "http://").
+            val rest = url.removePrefix("http://").toByteArray()
+            val payload = byteArrayOf(0x03) + rest
+            val rec = byteArrayOf(0xD1.toByte(), 0x01, payload.size.toByte(), 0x55) + payload
+            return byteArrayOf((rec.size shr 8).toByte(), rec.size.toByte()) + rec
+        }
         val type = SCALFY_MIME.toByteArray(); val body = session()
         val rec = byteArrayOf(0xD2.toByte(), type.size.toByte(), body.size.toByte()) + type + body
         return byteArrayOf((rec.size shr 8).toByte(), rec.size.toByte()) + rec
